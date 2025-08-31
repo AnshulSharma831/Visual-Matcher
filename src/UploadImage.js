@@ -75,7 +75,10 @@ function UploadImg({ onUploadSuccess }) {
             
             try {
                 // Validate if URL is an image
-                const response = await fetch(imageUrl, { method: 'HEAD' });
+                const response = await fetch(imageUrl, { 
+                    method: 'HEAD',
+                    mode: 'cors'
+                });
                 const contentType = response.headers.get('content-type');
                 
                 if (!contentType || !contentType.startsWith('image/')) {
@@ -93,6 +96,7 @@ function UploadImg({ onUploadSuccess }) {
                 setSelectedFile(mockFile);
                 setUploadStatus('success');
             } catch (error) {
+                console.error('URL validation error:', error);
                 setUploadStatus('error');
                 setTimeout(() => setUploadStatus(''), 3000);
             } finally {
@@ -122,13 +126,15 @@ function UploadImg({ onUploadSuccess }) {
                 // File upload
                 formData.append('image', selectedFile);
             } else {
-                // URL upload
-                formData.append('imageUrl', imageUrl);
+                // URL upload - use the imageUrl state instead of selectedFile
+                formData.append('imageUrl', imageUrl.trim());
             }
             
-            const response = await fetch('/api/upload', {
+            // FIXED: Corrected API endpoint URL with proper error handling
+            const response = await fetch('http://localhost:5000/api/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                // Don't set Content-Type header - let browser set it for FormData
             });
             
             if (response.ok) {
@@ -144,12 +150,20 @@ function UploadImg({ onUploadSuccess }) {
                     onUploadSuccess(result);
                 }
             } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Upload failed');
+                const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+                throw new Error(errorData.error || `Server error: ${response.status}`);
             }
         } catch (error) {
             console.error('Upload error:', error);
             setUploadStatus('error');
+            
+            // Show more specific error message
+            const errorMessage = error.message.includes('fetch') 
+                ? 'Cannot connect to server. Make sure the backend is running on port 5000.'
+                : error.message;
+            
+            // You could set an error message state here to display to user
+            console.error('Detailed error:', errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -202,7 +216,7 @@ function UploadImg({ onUploadSuccess }) {
 
                 {uploadStatus === 'error' && (
                     <div className="file-info" style={{borderLeftColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)'}}>
-                        <div className="file-name" style={{color: '#dc3545'}}>✗ Please select a valid image file</div>
+                        <div className="file-name" style={{color: '#dc3545'}}>✗ Please select a valid image file or check your connection</div>
                     </div>
                 )}
                 
@@ -230,17 +244,37 @@ function UploadImg({ onUploadSuccess }) {
             {/* Display results */}
             {uploadResult && similarProducts.length > 0 && (
                 <div className="results-section">
-                    <h2>Similar Products Found:</h2>
+                    <h2>Similar Products Found ({similarProducts.length}):</h2>
                     <div className="products-grid">
                         {similarProducts.map((product, index) => (
                             <div key={product._id || index} className="product-card">
-                                <img src={product.imageUrl} alt={product.name} />
+                                <img 
+                                    src={product.imageUrl} 
+                                    alt={product.name}
+                                    onError={(e) => {
+                                        e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
+                                    }}
+                                />
                                 <h3>{product.name}</h3>
-                                <p>{product.category}</p>
+                                <p className="category">{product.category}</p>
+                                <p className="description">{product.description}</p>
                                 <span className="price">${product.price}</span>
+                                {product.similarity && (
+                                    <span className="similarity">
+                                        {Math.round(product.similarity * 100)}% match
+                                    </span>
+                                )}
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Show message if no similar products found */}
+            {uploadResult && similarProducts.length === 0 && (
+                <div className="results-section">
+                    <h2>No Similar Products Found</h2>
+                    <p>Try uploading a different image or check if the database has been seeded with products.</p>
                 </div>
             )}
         </>
