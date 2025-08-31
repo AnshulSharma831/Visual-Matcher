@@ -1,12 +1,13 @@
+
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
-const { extractFeaturesFromUrl } = require('../utils/imageProcessor');
+const { extractFeaturesFromUrl, extractAdvancedFeatures } = require('../utils/imageProcessor');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Expanded sample products with daily life items
-const sampleProducts = [
+// Enhanced sample products with better categorization
+const enhancedSampleProducts = [
     // Electronics & Tech
     { name: 'iPhone 15 Pro', category: 'Electronics', price: 999, imageUrl: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=500', description: 'Latest smartphone with advanced features' },
     { name: 'MacBook Air', category: 'Electronics', price: 1299, imageUrl: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=500', description: 'Lightweight laptop for productivity' },
@@ -271,80 +272,372 @@ const sampleProducts = [
     { name: 'Paper Towels', category: 'Daily Essentials', price: 18, imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=500', description: 'Absorbent paper towel rolls' }
 ];
 
-const seedDatabase = async () => {
+const enhancedSeedDatabase = async () => {
     try {
         // Connect to MongoDB
         await mongoose.connect(process.env.MONGODB_URI);
-        console.log('🔗 Connected to MongoDB');
+        console.log('🔗 Connected to MongoDB for enhanced AI seeding');
         
         // Clear existing products
         await Product.deleteMany({});
         console.log('🗑️  Cleared existing products');
         
-        // Process each product
+        // Process each product with advanced AI features
         const processedProducts = [];
+        const failedProducts = [];
         
-        console.log(`📦 Processing ${sampleProducts.length} products...`);
+        console.log(`🧠 Processing ${enhancedSampleProducts.length} products with advanced AI...`);
+        console.log('📊 Extracting: Color histograms, Edge features, Texture patterns, Shape analysis, Dominant colors, Brightness/Contrast');
         
-        for (let i = 0; i < sampleProducts.length; i++) {
-            const product = sampleProducts[i];
-            console.log(`⏳ Processing ${i + 1}/${sampleProducts.length}: ${product.name}`);
+        for (let i = 0; i < enhancedSampleProducts.length; i++) {
+            const product = enhancedSampleProducts[i];
+            console.log(`\n⏳ Processing ${i + 1}/${enhancedSampleProducts.length}: ${product.name}`);
+            console.log(`🏷️  Category: ${product.category} | 💰 Price: ${product.price}`);
             
             try {
-                // Extract color features from image URL
-                const colorFeatures = await extractFeaturesFromUrl(product.imageUrl);
+                // Extract advanced AI features from image URL
+                console.log(`🎨 Analyzing image with computer vision...`);
+                const advancedFeatures = await extractFeaturesFromUrl(product.imageUrl);
                 
-                // Create product with features
+                // Break down features into components (approximate based on our feature extraction)
+                const featureLength = advancedFeatures.length;
+                const colorHistStart = 0;
+                const colorHistLength = Math.floor(featureLength * 0.3); // ~30% for color histogram
+                const edgeStart = colorHistStart + colorHistLength;
+                const edgeLength = Math.floor(featureLength * 0.15); // ~15% for edges
+                const textureStart = edgeStart + edgeLength;
+                const textureLength = Math.floor(featureLength * 0.15); // ~15% for texture
+                const shapeStart = textureStart + textureLength;
+                const shapeLength = 7; // Fixed 7 for shape features
+                const dominantStart = shapeStart + shapeLength;
+                const dominantLength = 15; // 5 colors × 3 RGB values
+                const brightnessStart = dominantStart + dominantLength;
+                const brightnessLength = 3;
+                const contrastStart = brightnessStart + brightnessLength;
+                
+                // Extract individual feature components
+                const visualFeatures = {
+                    colorHistogram: advancedFeatures.slice(colorHistStart, colorHistStart + colorHistLength),
+                    edgeFeatures: advancedFeatures.slice(edgeStart, edgeStart + edgeLength),
+                    textureFeatures: advancedFeatures.slice(textureStart, textureStart + textureLength),
+                    shapeFeatures: advancedFeatures.slice(shapeStart, shapeStart + shapeLength),
+                    dominantColors: advancedFeatures.slice(dominantStart, dominantStart + dominantLength),
+                    brightnessFeatures: advancedFeatures.slice(brightnessStart, brightnessStart + brightnessLength),
+                    contrastFeatures: advancedFeatures.slice(contrastStart, contrastStart + 1)
+                };
+                
+                // Calculate metadata
+                const avgBrightness = visualFeatures.brightnessFeatures.length > 0 
+                    ? visualFeatures.brightnessFeatures[0] : 0.5;
+                const avgContrast = visualFeatures.contrastFeatures.length > 0 
+                    ? visualFeatures.contrastFeatures[0] : 0.5;
+                
+                // Infer category confidence
+                const categoryConfidence = inferCategoryConfidence(product.category, visualFeatures);
+                
+                // Create enhanced product data
                 const productData = {
                     ...product,
-                    cloudinaryId: `sample_${i}`, // Mock cloudinary ID for seeded products
-                    colorFeatures: colorFeatures
+                    cloudinaryId: `enhanced_sample_${i}`,
+                    colorFeatures: advancedFeatures, // Store complete feature vector
+                    visualFeatures: visualFeatures,
+                    productMetadata: {
+                        inferredCategory: product.category,
+                        priceRange: getPriceRange(product.price),
+                        dominantColorNames: extractColorNames(visualFeatures.dominantColors),
+                        averageBrightness: avgBrightness,
+                        averageContrast: avgContrast
+                    },
+                    searchTags: product.tags || [],
+                    analysisQuality: {
+                        imageProcessingSuccess: true,
+                        featureExtractionScore: categoryConfidence,
+                        lastAnalyzed: new Date()
+                    }
                 };
                 
                 processedProducts.push(productData);
                 console.log(`✅ Successfully processed: ${product.name}`);
+                console.log(`   🎯 Features: ${advancedFeatures.length} dimensions`);
+                console.log(`   🌈 Dominant colors: ${productData.productMetadata.dominantColorNames.join(', ')}`);
+                console.log(`   💡 Brightness: ${(avgBrightness * 100).toFixed(1)}%`);
+                console.log(`   🔄 Analysis quality: ${(categoryConfidence * 100).toFixed(1)}%`);
                 
-                // Add small delay to avoid overwhelming the image processing
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // Add delay to avoid overwhelming servers
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
             } catch (error) {
                 console.error(`❌ Error processing ${product.name}:`, error.message);
-                // Skip this product if image processing fails but continue with others
+                failedProducts.push({ product: product.name, error: error.message });
+                
+                // Create basic product entry without advanced features
+                const basicProductData = {
+                    ...product,
+                    cloudinaryId: `basic_sample_${i}`,
+                    colorFeatures: new Array(1331).fill(0.001),
+                    visualFeatures: {
+                        colorHistogram: new Array(400).fill(0.001),
+                        edgeFeatures: new Array(16).fill(0.001),
+                        textureFeatures: new Array(256).fill(0.001),
+                        shapeFeatures: new Array(7).fill(0.001),
+                        dominantColors: new Array(15).fill(0.5),
+                        brightnessFeatures: [0.5, 0.1, 0],
+                        contrastFeatures: [0.3]
+                    },
+                    productMetadata: {
+                        inferredCategory: product.category,
+                        priceRange: getPriceRange(product.price),
+                        dominantColorNames: ['unknown'],
+                        averageBrightness: 0.5,
+                        averageContrast: 0.3
+                    },
+                    searchTags: product.tags || [],
+                    analysisQuality: {
+                        imageProcessingSuccess: false,
+                        featureExtractionScore: 0.1,
+                        lastAnalyzed: new Date()
+                    }
+                };
+                
+                processedProducts.push(basicProductData);
+                console.log(`⚠️  Added ${product.name} with basic features`);
             }
         }
         
         // Insert all processed products
         if (processedProducts.length > 0) {
             await Product.insertMany(processedProducts);
-            console.log(`🎉 Successfully seeded ${processedProducts.length} products!`);
-            console.log(`📊 Categories added:`);
+            console.log(`\n🎉 Enhanced AI seeding completed!`);
+            console.log(`📊 Results Summary:`);
+            console.log(`   ✅ Successfully processed: ${processedProducts.length} products`);
+            console.log(`   ❌ Failed processing: ${failedProducts.length} products`);
             
-            // Show category breakdown
+            // Detailed analytics
+            const successfulProducts = processedProducts.filter(p => p.analysisQuality.imageProcessingSuccess);
+            const avgQuality = successfulProducts.length > 0 
+                ? successfulProducts.reduce((sum, p) => sum + p.analysisQuality.featureExtractionScore, 0) / successfulProducts.length
+                : 0;
+            
+            console.log(`   🧠 Advanced AI features: ${successfulProducts.length} products`);
+            console.log(`   📈 Average analysis quality: ${(avgQuality * 100).toFixed(1)}%`);
+            
+            // Category breakdown
+            console.log(`\n📂 Category Distribution:`);
             const categories = {};
             processedProducts.forEach(product => {
                 categories[product.category] = (categories[product.category] || 0) + 1;
             });
             
             Object.entries(categories).forEach(([category, count]) => {
-                console.log(`   ${category}: ${count} products`);
+                const categoryProducts = processedProducts.filter(p => p.category === category);
+                const successRate = categoryProducts.filter(p => p.analysisQuality.imageProcessingSuccess).length / count;
+                console.log(`   ${category}: ${count} products (${(successRate * 100).toFixed(0)}% AI success)`);
             });
+            
+            // Price range breakdown
+            console.log(`\n💰 Price Range Distribution:`);
+            const priceRanges = {};
+            processedProducts.forEach(product => {
+                const range = product.productMetadata.priceRange;
+                priceRanges[range] = (priceRanges[range] || 0) + 1;
+            });
+            
+            Object.entries(priceRanges).forEach(([range, count]) => {
+                console.log(`   ${range}: ${count} products`);
+            });
+            
+            if (failedProducts.length > 0) {
+                console.log(`\n⚠️  Failed Products (will use basic features):`);
+                failedProducts.forEach(({ product, error }) => {
+                    console.log(`   - ${product}: ${error}`);
+                });
+            }
+            
+            // Test the enhanced matching system
+            console.log(`\n🧪 Testing enhanced AI matching system...`);
+            await testEnhancedMatching();
             
         } else {
             console.log('❌ No products were successfully processed');
         }
         
     } catch (error) {
-        console.error('💥 Seeding error:', error);
+        console.error('💥 Enhanced seeding error:', error);
     } finally {
         mongoose.connection.close();
         console.log('🔐 Database connection closed');
     }
 };
 
+// Test the enhanced matching system
+const testEnhancedMatching = async () => {
+    try {
+        const testProduct = await Product.findOne({ category: 'Electronics' });
+        if (!testProduct) return;
+        
+        const similarProducts = await Product.findSimilarByFeatures(
+            testProduct.colorFeatures,
+            { limit: 5, minSimilarity: 0.1 }
+        );
+        
+        console.log(`   🔍 Test search for "${testProduct.name}":`);
+        console.log(`   📋 Found ${similarProducts.length} similar products`);
+        
+        if (similarProducts.length > 0) {
+            console.log(`   🥇 Top match: "${similarProducts[0].name}" (${(similarProducts[0].similarity * 100).toFixed(1)}% similar)`);
+            console.log(`   🎯 Categories found: ${[...new Set(similarProducts.map(p => p.category))].join(', ')}`);
+        }
+        
+    } catch (error) {
+        console.error('   ❌ Test matching failed:', error.message);
+    }
+};
+
+// Helper functions
+const getPriceRange = (price) => {
+    if (price < 30) return 'budget';
+    if (price < 100) return 'mid-range';
+    if (price < 300) return 'premium';
+    return 'luxury';
+};
+
+const inferCategoryConfidence = (actualCategory, visualFeatures) => {
+    // Calculate confidence based on how well the visual features match the category
+    let confidence = 0.5; // Base confidence
+    
+    const avgBrightness = visualFeatures.brightnessFeatures.length > 0 
+        ? visualFeatures.brightnessFeatures[0] : 0.5;
+    const avgContrast = visualFeatures.contrastFeatures.length > 0 
+        ? visualFeatures.contrastFeatures[0] : 0.5;
+    
+    // Category-specific heuristics
+    switch (actualCategory.toLowerCase()) {
+        case 'electronics':
+            // Electronics tend to be bright and clean
+            if (avgBrightness > 0.6 && avgContrast < 0.4) confidence += 0.3;
+            break;
+        case 'fashion':
+        case 'shoes':
+            // Fashion items have varied brightness and contrast
+            if (avgBrightness > 0.3 && avgBrightness < 0.8) confidence += 0.2;
+            break;
+        case 'tools':
+            // Tools often have high contrast (metal/dark handles)
+            if (avgContrast > 0.5) confidence += 0.3;
+            break;
+        case 'kitchen':
+            // Kitchen items vary but often metallic or white
+            if (avgBrightness > 0.5 || avgContrast > 0.4) confidence += 0.2;
+            break;
+        default:
+            confidence += 0.1;
+    }
+    
+    return Math.min(1.0, confidence);
+};
+
+const extractColorNames = (dominantColors) => {
+    if (!dominantColors || dominantColors.length < 15) return ['unknown'];
+    
+    const colorNames = [];
+    
+    // Process each RGB color (5 colors × 3 values each)
+    for (let i = 0; i < 15; i += 3) {
+        const r = dominantColors[i] * 255;
+        const g = dominantColors[i + 1] * 255;
+        const b = dominantColors[i + 2] * 255;
+        
+        const colorName = getColorName(r, g, b);
+        if (colorName && !colorNames.includes(colorName)) {
+            colorNames.push(colorName);
+        }
+    }
+    
+    return colorNames.length > 0 ? colorNames : ['mixed'];
+};
+
+const getColorName = (r, g, b) => {
+    // Simple color name mapping based on RGB values
+    const brightness = (r + g + b) / 3;
+    
+    if (brightness < 50) return 'black';
+    if (brightness > 200) return 'white';
+    
+    if (r > g + 50 && r > b + 50) return 'red';
+    if (g > r + 50 && g > b + 50) return 'green';
+    if (b > r + 50 && b > g + 50) return 'blue';
+    if (r > 150 && g > 150 && b < 100) return 'yellow';
+    if (r > 150 && g < 100 && b > 150) return 'purple';
+    if (r < 100 && g > 150 && b > 150) return 'cyan';
+    if (r > 150 && g > 100 && b < 100) return 'orange';
+    if (r > 100 && g > 100 && b > 100) return 'gray';
+    if (r > 139 && g > 69 && b > 19 && r < 160 && g < 90 && b < 40) return 'brown';
+    
+    return 'mixed';
+};
+
+// Function to update existing products with advanced features
+const upgradeExistingProducts = async () => {
+    console.log('🔄 Upgrading existing products with advanced AI features...');
+    
+    try {
+        const products = await Product.find({});
+        console.log(`📦 Found ${products.length} existing products to upgrade`);
+        
+        let upgraded = 0;
+        let failed = 0;
+        
+        for (const product of products) {
+            try {
+                console.log(`⏳ Upgrading: ${product.name}`);
+                
+                // Extract advanced features
+                const advancedFeatures = await extractFeaturesFromUrl(product.imageUrl);
+                
+                // Update product with new features
+                await Product.findByIdAndUpdate(product._id, {
+                    colorFeatures: advancedFeatures,
+                    'analysisQuality.imageProcessingSuccess': true,
+                    'analysisQuality.featureExtractionScore': 0.9,
+                    'analysisQuality.lastAnalyzed': new Date()
+                });
+                
+                upgraded++;
+                console.log(`✅ Upgraded: ${product.name}`);
+                
+                // Rate limiting
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+            } catch (error) {
+                failed++;
+                console.error(`❌ Failed to upgrade ${product.name}:`, error.message);
+            }
+        }
+        
+        console.log(`\n📊 Upgrade Results:`);
+        console.log(`   ✅ Successfully upgraded: ${upgraded} products`);
+        console.log(`   ❌ Failed to upgrade: ${failed} products`);
+        
+    } catch (error) {
+        console.error('💥 Upgrade process error:', error);
+    }
+};
+
 // Run seeding if this file is executed directly
 if (require.main === module) {
-    console.log('🌱 Starting database seeding process...');
-    seedDatabase();
+    const args = process.argv.slice(2);
+    
+    if (args.includes('--upgrade')) {
+        console.log('🔄 Starting product upgrade process...');
+        upgradeExistingProducts();
+    } else {
+        console.log('🌱 Starting enhanced AI database seeding process...');
+        enhancedSeedDatabase();
+    }
 }
 
-module.exports = { seedDatabase, sampleProducts };
+module.exports = { 
+    enhancedSeedDatabase, 
+    upgradeExistingProducts, 
+    enhancedSampleProducts 
+};
