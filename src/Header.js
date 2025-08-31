@@ -5,9 +5,13 @@ function createSearchPage() {
     return(
     <>
         <div className="searchHeader">
+            <a href="https://www.linkedin.com/in/anshul-sharma-831ans/" target="_blank">
             <img className="projectLogo" src={projectLogo} alt="logo"/>
-            <h1 className="projectTitle">Find Your Image</h1>
-            <button className="darkModeButton">Dark Mode</button>
+            </a>
+            <h1 className="projectTitle">Find Similar Image</h1>
+            <a href="https://github.com/AnshulSharma831/Visual-Matcher/tree/main/server" target="_blank">
+            <button className="darkModeButton">GitHub Repository</button>
+            </a>
         </div>
     </>
 );
