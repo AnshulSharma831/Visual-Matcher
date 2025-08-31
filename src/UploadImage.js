@@ -10,6 +10,7 @@ function UploadImg({ onUploadSuccess }) {
     const [imageUrl, setImageUrl] = useState('');
     const [similarProducts, setSimilarProducts] = useState([]);
     const [uploadResult, setUploadResult] = useState(null);
+    const [uploadedImagePreview, setUploadedImagePreview] = useState(null); // New state for image preview
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -47,6 +48,10 @@ function UploadImg({ onUploadSuccess }) {
 
         setSelectedFile(file);
         setUploadStatus('success');
+        
+        // Create preview URL for the uploaded file
+        const previewUrl = URL.createObjectURL(file);
+        setUploadedImagePreview(previewUrl);
     };
 
     const handleRemoveFile = () => {
@@ -56,6 +61,12 @@ function UploadImg({ onUploadSuccess }) {
         setImageUrl('');
         setSimilarProducts([]);
         setUploadResult(null);
+        
+        // Clean up the preview URL to prevent memory leaks
+        if (uploadedImagePreview) {
+            URL.revokeObjectURL(uploadedImagePreview);
+            setUploadedImagePreview(null);
+        }
         
         // Clear the file input
         const fileInput = document.querySelector('.upload');
@@ -95,6 +106,7 @@ function UploadImg({ onUploadSuccess }) {
                 
                 setSelectedFile(mockFile);
                 setUploadStatus('success');
+                setUploadedImagePreview(imageUrl); // Set preview to the URL directly
             } catch (error) {
                 console.error('URL validation error:', error);
                 setUploadStatus('error');
@@ -144,6 +156,11 @@ function UploadImg({ onUploadSuccess }) {
                 setUploadResult(result);
                 setSimilarProducts(result.similarProducts || []);
                 setUploadStatus('success');
+                
+                // Store the uploaded image URL from the response for display
+                if (result.uploadedImageUrl && !uploadedImagePreview) {
+                    setUploadedImagePreview(result.uploadedImageUrl);
+                }
                 
                 // Call parent component callback if provided
                 if (onUploadSuccess) {
@@ -219,6 +236,11 @@ function UploadImg({ onUploadSuccess }) {
                         <div className="file-name" style={{color: '#dc3545'}}>✗ Please select a valid image file or check your connection</div>
                     </div>
                 )}
+                {uploadResult && (
+                <div className="scroll-message">
+                    <p>Scroll Down 👇</p>
+                </div>
+                )}
                 
                 <h1 className="or">OR</h1>
                 
@@ -241,40 +263,80 @@ function UploadImg({ onUploadSuccess }) {
                 </button>
             </div>
 
-            {/* Display results */}
-            {uploadResult && similarProducts.length > 0 && (
+            {/* Display uploaded image and results together */}
+            {uploadResult && uploadedImagePreview && (
                 <div className="results-section">
-                    <h2>Similar Products Found ({similarProducts.length}):</h2>
-                    <div className="products-grid">
-                        {similarProducts.map((product, index) => (
-                            <div key={product._id || index} className="product-card">
-                                <img 
-                                    src={product.imageUrl} 
-                                    alt={product.name}
-                                    onError={(e) => {
-                                        e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
-                                    }}
-                                />
-                                <h3>{product.name}</h3>
-                                <p className="category">{product.category}</p>
-                                <p className="description">{product.description}</p>
-                                <span className="price">${product.price}</span>
-                                {product.similarity && (
-                                    <span className="similarity">
-                                        {Math.round(product.similarity * 100)}% match
-                                    </span>
+                    <h2>Search Results ({similarProducts.length} similar products found)</h2>
+                    
+                    {/* Uploaded Image Display */}
+                    <div className="uploaded-image-section">
+                        <h3>Your Uploaded Image</h3>
+                        <div className="uploaded-image-container">
+                            <img 
+                                src={uploadedImagePreview} 
+                                alt="User's search query"
+                                className="uploaded-image-display"
+                                onError={(e) => {
+                                    console.error('Error loading uploaded image preview');
+                                    e.target.style.display = 'none';
+                                }}
+                            />
+                            <div className="uploaded-image-info">
+                                <p className="uploaded-filename">
+                                    📸 {selectedFile?.name || 'Image from URL'}
+                                </p>
+                                {uploadResult.metadata && (
+                                    <div className="analysis-metadata">
+                                        <span className="confidence-badge">
+                                            🎯 {(uploadResult.metadata.confidence * 100).toFixed(0)}% Confidence
+                                        </span>
+                                        <span className="features-badge">
+                                            🧠 {uploadResult.metadata.featureDimensions} AI Features
+                                        </span>
+                                    </div>
                                 )}
                             </div>
-                        ))}
+                        </div>
                     </div>
-                </div>
-            )}
 
-            {/* Show message if no similar products found */}
-            {uploadResult && similarProducts.length === 0 && (
-                <div className="results-section">
-                    <h2>No Similar Products Found</h2>
-                    <p>Try uploading a different image or check if the database has been seeded with products.</p>
+                    {/* Similar Products Grid */}
+                    {similarProducts.length > 0 ? (
+                        <>
+                            <h3>Similar Products Found</h3>
+                            <div className="products-grid">
+                                {similarProducts.map((product, index) => (
+                                    <div key={product._id || index} className="product-card">
+                                        <img 
+                                            src={product.imageUrl} 
+                                            alt={product.name}
+                                            onError={(e) => {
+                                                e.target.src = 'https://via.placeholder.com/200x200?text=Image+Not+Found';
+                                            }}
+                                        />
+                                        <h4>{product.name}</h4>
+                                        <p className="category">{product.category}</p>
+                                        <p className="description">{product.description}</p>
+                                        <span className="price">${product.price}</span>
+                                        {product.similarity && (
+                                            <span className="similarity">
+                                                {Math.round(product.similarity * 100)}% match
+                                            </span>
+                                        )}
+                                        {product.matchStrategy && (
+                                            <span className="match-strategy">
+                                                {product.matchStrategy}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="no-results">
+                            <h3>No Similar Products Found</h3>
+                            <p>Try uploading a different image or check if the database has been seeded with products.</p>
+                        </div>
+                    )}
                 </div>
             )}
         </>
